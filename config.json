@@ -1,0 +1,9 @@
+{
+  "github": {
+    "username": "johnroberts",
+    "repos": ["my-blog", "obsidian-sync", "dotfiles", "palette-gen"]
+  },
+  "bluesky": {
+    "handles": ["johnroberts.bsky.social"]
+  }
+}

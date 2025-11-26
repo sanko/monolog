@@ -1,39 +1,59 @@
 {
-  "features": {
-    "github_discussions": true,
-    "github_issues": false,
-    "github_releases": true,
-    "bluesky_notes": true
-  },
   "profile": {
     "name": "Sanko Robinson",
-    "tagline": "Person.",
+    "tagline": "Human.",
     "url": "https://sankorobinson.com",
-    "email": "sanko@cpan.org",
-    "copyright_start": "2000",
+    "og_image": "https://johnroberts.com/og-card.png",
+    "email": "john@example.com",
+    "copyright_start": "2023",
     "socials": [
-      { "name": "github",  "url": "https://github.com/sanko" },
-      { "name": "email",   "url": "mailto:sanko@cpan.org" },
+      { "name": "github", "url": "https://github.com/sanko" },
       { "name": "bluesky", "url": "https://bsky.app/profile/sankorobinson.com" }
     ]
   },
-  "github": {
-    "sources": [
-      { "owner": "sanko", "repos": ["infix", "Affix.pm", "infix.pm"] },
-      { "owner": "Perl-SDL3", "repos": [ "Alien-SDL3.pm", "Alien-SDL3_image.pm", "Alien-SDL3_mixer.pm", "Alien-SDL3_ttf.pm"] }
-    ],
-    "groups": {
-      "SDL3.pm": ["Perl-SDL3/Alien-SDL3.pm", "Perl-SDL3/Alien-SDL3_image.pm"]
-    },
-    "tag_overrides": {
-        "css": "CSS",
-        "ai": "AI",
-        "ui": "UI",
-        "devops": "DevOps",
-        "affix.pm": "Affix.pm"
+  "analytics": {
+    "plausible": {
+      "enabled": false,
+      "domain": "sankorobinson.com",
+      "src": "https://plausible.io/js/script.js"
     }
   },
+  "github": {
+    "sources": [
+      {
+        "name": "personal",
+        "owner": "sanko",
+        "repos": ["infix", "infix.pm"],
+        "issues": false,
+        "releases": true
+      },
+      {
+        "name": "personal",
+        "owner": "sanko",
+        "repos": ["Affix.pm"],
+        "discussions": false,
+        "issues": false,
+        "releases": true
+      }
+    ],
+    "groups": {
+      "Infrastructure": ["johnroberts/dotfiles", "payment-gateway"]
+    },
+    "tag_overrides": { "css": "CSS", "ai": "AI" }
+  },
   "bluesky": {
-    "handles": ["sankorobinson.com"]
+    "sources": [
+      { "name": "social", "handle": "sankorobinson.com" }
+    ]
+  },
+  "xxxyoutube": {
+    "sources": [
+      { "name": "vlog", "channel_id": "UC_x5XG1OV2P6uZZ5FSM9Ttw" }
+    ]
+  },
+  "feeds": {
+    "feed.xml": { "type": "rss", "sources": ["*"] },
+    "atom.xml": { "type": "atom", "sources": ["*"] },
+    "feeds/code.xml": { "type": "atom", "sources": ["personal"], "title": "John Roberts - Code" }
   }
 }

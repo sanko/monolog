@@ -1,10 +1,17 @@
 {
-  "name": "demopage",
+  "name": "codex-blog",
   "version": "1.0.0",
-  "description": "",
+  "description": "A headless, single-column content aggregator.",
   "main": "build.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "build": "node build.js",
+    "dev": "node build.js"
+  },
+  "dependencies": {
+    "dotenv": "^16.6.1",
+    "markdown-it": "^13.0.2",
+    "node-fetch": "^2.6.7",
+    "rss": "^1.2.2"
   },
   "repository": {
     "type": "git",
@@ -17,10 +24,5 @@
   "bugs": {
     "url": "https://github.com/sanko/demopage/issues"
   },
-  "homepage": "https://github.com/sanko/demopage#readme",
-  "dependencies": {
-    "dotenv": "^17.2.3",
-    "markdown-it": "^14.1.0",
-    "node-fetch": "^2.7.0"
-  }
+  "homepage": "https://github.com/sanko/demopage#readme"
 }

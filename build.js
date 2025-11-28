@@ -13,15 +13,16 @@ require('dotenv').config();
 const config = require('./config.json');
 const emojiPlugin = require('markdown-it-emoji');
 
-// Init Markdown (Handle plugin version diffs)
+// Markdown parser (used inside Liquid filter)
 const md = new MarkdownIt({
         html: true,
         linkify: true
     })
     .use(emojiPlugin.full || emojiPlugin);
 
-// Init Liquid
+// Liquid Engine
 const engine = new Liquid();
+// Register 'markdown' filter so we can use {{ item.body | markdown }} in the template
 engine.registerFilter('markdown', (str) => md.render(str || ''));
 
 const rssParser = new Parser();
@@ -31,7 +32,7 @@ const slugify = txt => txt.toLowerCase().replace(/[^a-z0-9]+/g, '-');
 let githubStatus = null;
 let nowPost = null;
 
-// Tag Map
+// Tag Mapping
 const tagDisplayMap = {
     'notes': 'Notes',
     'commits': 'Commits',
@@ -47,7 +48,8 @@ if (config.github?.tag_overrides) {
     Object.assign(tagDisplayMap, config.github.tag_overrides);
 }
 
-// FETCHERS
+// HELPERS
+
 function getPrimaryGitHubUser() {
     if (config.profile.github_username) return config.profile.github_username;
     if (config.profile.socials) {
@@ -57,10 +59,11 @@ function getPrimaryGitHubUser() {
     return null;
 }
 
+// FETCHERS
+
 async function fetchGitHub() {
     if (!config.github?.sources) return [];
     console.log('Fetching GitHub...');
-
     const primaryUser = getPrimaryGitHubUser();
     const pagesRepo = primaryUser ? `${primaryUser}/${primaryUser}.github.io` : null;
 
@@ -123,7 +126,6 @@ async function fetchGitHub() {
                             }
                         }
                     }
-
                     allData.push({
                         sourceName: source.name,
                         type: type,
@@ -144,6 +146,7 @@ async function fetchGitHub() {
 
                 if (enableDiscussions && discussions) {
                     discussions.nodes.forEach(d => {
+                        // "Now" Page Logic
                         if (pagesRepo && fullRepoName === pagesRepo && d.category.name.toLowerCase() === 'announcements') {
                             const date = new Date(d.createdAt);
                             if (!nowPost || date > nowPost.date) nowPost = {
@@ -184,9 +187,7 @@ async function fetchGitHub() {
                 }
 
                 if (enableReleases && releases) {
-                    releases.nodes.forEach(r => {
-                        pushItem(r, 'release', ['commits', repoSlug]);
-                    });
+                    releases.nodes.forEach(r => pushItem(r, 'release', ['commits', repoSlug]));
                 }
             } catch (e) {
                 console.error(`GH Error ${repo}:`, e.message);
@@ -222,9 +223,9 @@ async function fetchBluesky() {
                     image: imageUrl,
                     tags: ['notes'],
                     metrics: {
-                        replies: post.replyCount || 0,
-                        reposts: post.repostCount || 0,
-                        likes: post.likeCount || 0
+                        replies: post.replyCount,
+                        reposts: post.repostCount,
+                        likes: post.likeCount
                     }
                 });
             });
@@ -333,10 +334,11 @@ async function fetchYouTube() {
     if (!config.youtube?.sources) return [];
     console.log('Fetching YouTube...');
     const allData = [];
+    const parser = new Parser();
 
     for (const source of config.youtube.sources) {
         try {
-            const feed = await rssParser.parseURL(`https://www.youtube.com/feeds/videos.xml?channel_id=${source.channel_id}`);
+            const feed = await parser.parseURL(`https://www.youtube.com/feeds/videos.xml?channel_id=${source.channel_id}`);
             feed.items.forEach(item => {
                 const mediaGroup = item['media:group'];
                 const thumb = mediaGroup ? mediaGroup['media:thumbnail'][0].$.url : null;
@@ -363,9 +365,10 @@ async function fetchRSS() {
     if (!config.rss?.sources) return [];
     console.log('Fetching RSS...');
     const allData = [];
+    const parser = new Parser();
     for (const source of config.rss.sources) {
         try {
-            const feed = await rssParser.parseURL(source.url);
+            const feed = await parser.parseURL(source.url);
             feed.items.slice(0, 10).forEach(item => {
                 const bodyText = (item.contentSnippet || item.content || "").trim();
                 allData.push({
@@ -403,7 +406,6 @@ async function fetchGitLab() {
             });
             const json = await res.json();
             if (!Array.isArray(json)) continue;
-
             json.forEach(r => {
                 allData.push({
                     sourceName: source.name,
@@ -475,7 +477,6 @@ async function fetchBitbucket() {
             });
             const json = await res.json();
             if (!json.values) continue;
-
             json.values.slice(0, 5).forEach(tag => {
                 allData.push({
                     sourceName: source.name,
@@ -497,10 +498,10 @@ async function fetchBitbucket() {
     return allData;
 }
 
-// DATA PREPARATION FOR LIQUID
+// DATA PREP
 
 function prepareTemplateData(allContent, uniqueTags) {
-    // 1. Format Tags for Filter List (Grouped)
+    // 1. Filter List
     const types = ['notes', 'commits', 'video', 'bookmark', 'rss'];
     const knownRepos = config.github?.sources ? config.github.sources.flatMap(s => s.repos.map(r => slugify(r))) : [];
     const knownGroups = config.github?.groups ? Object.keys(config.github.groups).map(g => slugify(g)) : [];
@@ -527,43 +528,30 @@ function prepareTemplateData(allContent, uniqueTags) {
         else groups.topics.push(item);
     });
 
-    // Create nested array for the template loop (handling separators logic)
     const filter_sections = [];
     if (groups.types.length) filter_sections.push(groups.types);
     if (groups.groups.length) filter_sections.push(groups.groups.sort((a, b) => a.name.localeCompare(b.name)));
     if (groups.repos.length) filter_sections.push(groups.repos.sort((a, b) => a.name.localeCompare(b.name)));
     if (groups.topics.length) filter_sections.push(groups.topics.sort((a, b) => a.name.localeCompare(b.name)));
 
-    // 2. Generate Dynamic CSS
-    let dynamic_css = '';
-    uniqueTags.forEach(tag => {
-        const id = `f-${tag}`;
-        dynamic_css += `body:has(#${id}:checked) label[for="${id}"] { color: var(--c-text); font-weight: 800; }\n`;
-        dynamic_css += `body:has(#${id}:checked) label[for="${id}"]::before, body:has(#${id}:checked) label[for="${id}"]::after { opacity: 1; }\n`;
-        dynamic_css += `body:has(#${id}:checked) .entry.tag-${tag} { opacity: 1; filter: none; }\n`;
-    });
-
-    // 3. Group Content by Year
+    // 2. Timeline
     const timeline = [];
     const byYear = {};
     allContent.forEach(item => {
         const year = item.date.getFullYear();
         if (!byYear[year]) byYear[year] = [];
 
-        // Pre-calculate display properties for template
-        item.dateStr = item.date.toLocaleDateString('en-US', {
-            month: 'short',
-            day: 'numeric'
-        });
+        // Calculate helper properties for Liquid
         item.tag_classes = item.tags.map(t => `tag-${t}`).join(' ');
+        item.sourceLabel = item.service === 'bluesky' ? 'Bluesky' : (item.service === 'mastodon' ? 'Mastodon' : (item.repo ? item.repo : 'Note'));
 
-        // Summarize for Articles
         if (item.type === 'article' && item.body) {
-            const rawBody = item.body.split('\n').filter(l => l.length && !l.startsWith('#'))[0] || "";
-            item.summary = md.render(rawBody).replace(/<[^>]*>?/gm, '');
-        }
+            // Find the first line that has text and is NOT a Header (#)
+            const raw = item.body.split('\n').find(l => l.trim().length > 0 && !l.trim().startsWith('#')) || "";
 
-        item.sourceLabel = item.service === 'bluesky' ? 'Bluesky' : (item.repo ? item.repo : 'Note');
+            // Assign the raw markdown line directly to summary
+            item.summary = raw;
+        }
 
         byYear[year].push(item);
     });
@@ -575,7 +563,7 @@ function prepareTemplateData(allContent, uniqueTags) {
         });
     });
 
-    // 4. Status Object
+    // 3. Status Object (Pass raw strings, let Liquid filter handle emoji rendering)
     let statusObj = null;
     if (githubStatus) {
         const emojiHtml = md.renderInline(githubStatus.emoji || '💭');
@@ -586,15 +574,12 @@ function prepareTemplateData(allContent, uniqueTags) {
         };
     }
 
-    // 5. Now Post
+    // 4. Now Post (Raw)
     let nowObj = null;
     if (nowPost) {
         nowObj = {
-            content: md.render(nowPost.body),
-            date: nowPost.date.toLocaleDateString('en-US', {
-                month: 'short',
-                day: 'numeric'
-            })
+            body: nowPost.body,
+            date: nowPost.date
         };
     }
 
@@ -606,21 +591,18 @@ function prepareTemplateData(allContent, uniqueTags) {
             ...config.feeds[k],
             mime: config.feeds[k].type === 'atom' ? 'application/atom+xml' : 'application/rss+xml'
         })) : [],
-        year_range: config.profile.copyright_start == new Date().getFullYear()
-            ? `${config.profile.copyright_start}`
-            : `${config.profile.copyright_start}–${new Date().getFullYear()}`,
-
+        year_range: config.profile.copyright_start == new Date().getFullYear() ? `${config.profile.copyright_start}` : `${config.profile.copyright_start}–${new Date().getFullYear()}`,
         filters: Array.from(uniqueTags).map(t => ({
             id: t
         })),
         filter_sections: filter_sections,
-        dynamic_css: dynamic_css,
-
         timeline: timeline,
         status: statusObj,
         now: nowObj
     };
 }
+
+// FEED GENERATION
 
 function generateFeedFiles(allContent) {
     if (!config.feeds) return;
@@ -661,6 +643,7 @@ function generateFeedFiles(allContent) {
 }
 
 // MAIN
+
 async function build() {
     console.log("Starting Build...");
 
@@ -669,23 +652,29 @@ async function build() {
         fetchYouTube(), fetchRaindrop(), fetchGitLab(), fetchGitea(), fetchBitbucket(), fetchRSS()
     ]);
 
-    const allContent = results.filter(r => r.status === 'fulfilled').flatMap(r => r.value).sort((a, b) => b.date - a.date);
+    const allContent = results
+        .filter(r => r.status === 'fulfilled')
+        .flatMap(r => r.value)
+        .sort((a, b) => b.date - a.date);
 
     console.log(`Total items collected: ${allContent.length}`);
 
     const uniqueTags = new Set();
     allContent.forEach(item => item.tags.forEach(t => uniqueTags.add(t)));
 
-    // Prepare Data
+    // Prepare Data for Liquid
     const data = prepareTemplateData(allContent, uniqueTags);
 
-    // Render
+    // Render Template
     const template = fs.readFileSync('index.liquid', 'utf8');
     const html = await engine.parseAndRender(template, data);
     fs.writeFileSync('index.html', html);
 
-    // Feeds
+    // Generate Feeds
     generateFeedFiles(allContent);
+
+    //~ const prettyJson = JSON.stringify(data, null, 2); // Indent with 2 spaces
+    //~ console.log(prettyJson);
 
     console.log("Build complete.");
 }

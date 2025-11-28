@@ -8,10 +8,15 @@ If you push code to GitHub, post thoughts on Bluesky, bookmark articles on Raind
 
 It is "Headless" in the truest sense: You don't write content *for* Monolog. You live your digital life, and Monolog records it.
 
-### The Aesthetic
-*   **Paper & Ink:** A high-contrast, single-column design focused entirely on typography and readability.
-*   **Zero Client-Side Logic:** The filtering and theming happen via CSS. The site loads instantly.
-*   **No Maintenance:** It can run entirely on GitHub Actions. No servers to patch, no databases to back up.
+![License: Artistic-2.0](https://img.shields.io/badge/License-Artistic%202.0-0298c3.svg)
+
+Here is a more cohesive rewrite that blends the design philosophy with the technical instructions:
+
+### The Aesthetic & Theming
+
+Monolog defaults to a "Paper & Ink" design philosophy: a high-contrast, single-column layout that prioritizes typography and readability. By relying exclusively on advanced CSS for filtering and interactions, the site loads instantly without any client-side JavaScript overhead.
+
+The visual layer is completely decoupled from the build logic, living entirely within `index.liquid`. The default template uses **OKLCH** color spaces for perceptual uniformity. To customize the look, simply edit the CSS variables in the `<style>` block. System-wide Dark Mode is supported automatically via `prefers-color-scheme`, though you can override these values in the template's media query to suit your taste.
 
 ---
 
@@ -40,11 +45,14 @@ You can have this site running in about 5 minutes.
     ```
     Open `index.html` in your browser to see your timeline.
 
+---
+
 ## ⚙️ Configuration (`config.json`)
 
-The `config.json` file is the brain of your site. Here is every option available.
+The `config.json` file is the brain of your site.
 
 ### 1. Profile
+
 This section controls the header, footer, and SEO metadata.
 
 | Property | Type | Description |
@@ -69,18 +77,16 @@ Monolog supports privacy-friendly analytics out of the box.
 | **Cloudflare** | `enabled` | `bool` | Set to `true` to inject the beacon. |
 | | `token` | `string` | Your Cloudflare Web Analytics beacon token. |
 
-```yaml
-{
-  "analytics": {
-    "plausible": {
-      "enabled": true,
-      "domain": "johnroberts.com",
-      "src": "https://plausible.io/js/script.js"
-    },
-    "cloudflare": {
-      "enabled": false,
-      "token": "YOUR_BEACON_TOKEN"
-    }
+```json
+"analytics": {
+  "plausible": {
+    "enabled": true,
+    "domain": "example.com",
+    "src": "https://plausible.io/js/script.js"
+  },
+  "cloudflare": {
+    "enabled": false,
+    "token": "YOUR_BEACON_TOKEN"
   }
 }
 ```
@@ -89,16 +95,16 @@ Monolog supports privacy-friendly analytics out of the box.
 
 ## ✍️ How to Write Content
 
-Monolog uses **GitHub Discussions** as its primary authoring tool. To set this up, enable "Discussions" in your GitHub repository settings.
+Monolog uses GitHub Discussions as its primary authoring tool. To set this up, enable "Discussions" in your GitHub repository settings.
 
 | Content Type | GitHub Category | Behavior |
 | :--- | :--- | :--- |
 | **Articles** | `General` | Long-form writing. Displayed with a title and a summary. Labels become filter tags (e.g., "CSS", "Rust"). |
 | **Notes** | `Notes` | Micro-blogging. No title required; the full text is shown inline. Perfect for status updates or quick thoughts. |
-| **The "Now" Page** | `Announcements` | *Special:* Monolog looks for the most recent post in the `Announcements` category of your `username.github.io` repo. It pins this content to the very top of your site. |
+| **The "Now" Page** | `Announcements` | *Special:* Monolog looks for the most recent post in the `Announcements` (or `Now`) category of your `username.github.io` repo. It pins this content to the very top of your site. |
 | **Drafts** | `Drafts` | Anything in here is ignored by the build engine. |
 
-*Note: You can also pull "Notes" from Bluesky or Mastodon automatically.*
+*Note: You can also pull "Notes" from Bluesky, Mastodon, or Lemmy automatically.*
 
 ---
 
@@ -107,7 +113,6 @@ Monolog uses **GitHub Discussions** as its primary authoring tool. To set this u
 Monolog is an aggregator. You define "Sources" in your `config.json`, and the engine does the rest.
 
 ### GitHub
-
 This is the core of Monolog. We can track multiple repositories (e.g., your personal blog repo vs. your work organization). It can pull content from discussions, issues, and tagged releases.
 
 | Property | Type | Description |
@@ -130,11 +135,10 @@ This is the core of Monolog. We can track multiple repositories (e.g., your pers
   "sources": [
     {
       "name": "personal",       // Used for internal ID
-      "owner": "johnroberts",   // Your username
+      "owner": "example",   // Your username
       "repos": ["my-blog"],     // The repo where you write Discussions
-      "discussions": true,      // Enable fetching Articles/Notes
-      "releases": true,         // Enable fetching Release history
-      "issues": false           // Ignore issues
+      "discussions": true,
+      "releases": true
     }
   ],
   // Optional: Map specific repos to a clean "Topic" tag in the UI
@@ -145,6 +149,7 @@ This is the core of Monolog. We can track multiple repositories (e.g., your pers
   "tag_overrides": { "css": "CSS", "api": "API" }
 }
 ```
+
 ### Bluesky
 
 Fetches posts as "Notes". Includes images and engagement metrics. All social media posts appear as 'Notes' in your timeline.
@@ -190,8 +195,7 @@ Example:
 }
 ```
 
-### 3. Media & Reading (YouTube, Raindrop, RSS)
-
+### Media & Reading (YouTube, Raindrop, RSS)
 Share what you are watching and reading automatically.
 
 | Service | Property | Description |
@@ -200,26 +204,20 @@ Share what you are watching and reading automatically.
 | **Raindrop** | `collection_id` | The numeric ID of the collection. `0` is "All Bookmarks". |
 | **RSS** | `url` | Full URL to an external XML/RSS feed to ingest. |
 
-Examples:
-
 ```json
 "youtube": {
-  "sources": [
-    { "name": "vlog", "channel_id": "UC_..." } // Found in your channel URL
-  ]
+  "sources": [{ "name": "vlog", "channel_id": "UC_..." }]
 },
 "raindrop": {
   "collection_id": "0" // "0" means "All Bookmarks"
 },
 "rss": {
-  "sources": [
-    { "name": "hacker-news", "url": "https://news.ycombinator.com/rss" }
-  ]
+  "sources": [{ "name": "hacker-news", "url": "https://news.ycombinator.com/rss" }]
 }
 ```
 
-### 4. Code Forges (GitLab, Gitea, Bitbucket)
-If you host code elsewhere, Monolog can fetch your Release history and Tags from there, too.
+### Code Forges (GitLab, Gitea, Bitbucket)
+If you host code elsewhere, Monolog can fetch your Release history and Tags.
 
 | Service | Property | Description |
 | :--- | :--- | :--- |
@@ -231,8 +229,6 @@ If you host code elsewhere, Monolog can fetch your Release history and Tags from
 | **Bitbucket** | `workspace` | The workspace ID/slug. |
 | | `repo_slug` | The repository name. |
 
-Examples:
-
 ```json
 "gitlab": { "sources": [{ "name": "work", "id": "12345" }] },
 "gitea": { "instance": "git.example.com", "sources": [{ "owner": "user", "repo": "lab" }] }
@@ -242,7 +238,7 @@ Examples:
 
 ## 📡 Custom Feeds
 
-You probably don't want your "What I'm Reading" links cluttering your "Code Release" RSS feed. Monolog lets you generate specific feeds for specific audiences.
+Monolog generates RSS or Atom feeds automatically but you probably don't want your "What I'm Reading" links cluttering your "Code Release" RSS feed. Monolog lets you generate specific feeds for specific audiences.
 
 | Property | Type | Description |
 | :--- | :--- | :--- |
@@ -250,7 +246,6 @@ You probably don't want your "What I'm Reading" links cluttering your "Code Rele
 | `sources` | `array` | A list of **Source Names** (defined in your service configs above). Use `["*"]` to include everything. |
 | `title` | `string` | (Optional) The title of the XML feed. Defaults to profile name. |
 | `groups` | `array` | (Optional) Filter items further by requiring them to belong to a specific Group defined in `github.groups`. |
-
 
 In `config.json`, the `feeds` block maps output files to the `name` of the sources you defined above.
 
@@ -286,7 +281,7 @@ To keep your config file safe to commit, sensitive keys are stored in environmen
 
 | Key | Required? | Description |
 | :--- | :--- | :--- |
-| `GH_TOKEN` | **Yes** | A GitHub Personal Access Token (Classic). Needs `repo` and `read:discussion` scopes. Used for GraphQL queries. |
+| `GH_TOKEN` | **Yes** | A GitHub Personal Access Token (Classic). Needs `repo` and `user` scopes. |
 | `RAINDROP_TOKEN` | No | Required if using Raindrop. Get a "Test Token" from your Raindrop settings. |
 | `GITLAB_TOKEN` | No | Personal Access Token (read_api) for private GitLab repos. |
 | `GITEA_TOKEN` | No | Access Token for Gitea. |
@@ -294,22 +289,11 @@ To keep your config file safe to commit, sensitive keys are stored in environmen
 
 ---
 
-## 🎨 Theming
-
-The visual theme is completely decoupled from the build logic. It lives inside `index.liquid`.
-
-Monolog's default template uses **OKLCH** colors for perceptual uniformity. To change the theme, simply edit the CSS variables in the `<style>` block of `index.liquid`.
-
-**Dark Mode?**
-It is handled automatically by the browser (`prefers-color-scheme`). If you want to tweak the dark mode colors, look for the `@media (prefers-color-scheme: dark)` block in the template.
-
----
-
 ## 🤖 Automatic Deployment
 
 You don't need to manually build the site, use a GitHub Action!
 
-To enable Github Pages, go to `Settings > Pages`, and set the Source to **GitHub Actions** then add/edit the workflow:
+To enable Github Pages, go to `Settings > Pages`, and set the Source to **GitHub Actions** then create `.github/workflows/deploy.yml`:
 
 ```yaml
 name: Deploy Monolog
@@ -358,4 +342,8 @@ jobs:
 
 ## License
 
-You are free to use, modify, and distribute this software under the terms of the Artistic License 2.0.
+This project is licensed under the **Artistic License 2.0**.
+
+Copyright (c) 2025
+
+Everyone is permitted to copy and distribute verbatim copies of this license document, but changing it is not allowed. See the [LICENSE](LICENSE) file for details.

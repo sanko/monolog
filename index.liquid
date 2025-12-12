@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>{{ profile.name }}</title>
+    <meta name="description" content="{{ profile.tagline }}">
+    <meta name="author" content="{{ profile.name }}">
+    <meta name="generator" content="Monolog">
+
+    <!-- Canonical -->
+    <link rel="canonical" href="{{ profile.url }}">
+
+    <!-- Open Graph -->
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="{{ profile.name }}">
+    <meta property="og:description" content="{{ profile.tagline }}">
+    <meta property="og:url" content="{{ profile.url }}">
+    <meta property="og:site_name" content="{{ profile.name }}">
+    {% if profile.og_image %}<meta property="og:image" content="{{ profile.og_image }}">{% endif %}
+
+    <!-- Feeds -->
+    {% for feed in feeds %}<link rel="alternate" type="{{ feed.mime }}" title="{{ feed.title }}" href="{{ feed.file }}" />
+    {% endfor %}
+
+    {% if analytics.plausible.enabled %}<!-- Plausible analytics -->
+    <script defer data-domain="{{ analytics.plausible.domain }}" src="{{ analytics.plausible.src }}"></script>
+    {% endif %}
+    {% if analytics.cloudflare.enabled %}<!-- Cloudflare analytics -->
+    <script defer src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "{{ analytics.cloudflare.token }}"}'></script>
+    {% endif %}
+
+    <style>
+        :root {
+            /* Theme Primitives (Light) */
+            --light-paper: oklch(99% 0 0);
+            --light-table: oklch(96% 0.01 200);
+            --light-text: oklch(20% 0 0);
+            --light-sub: oklch(50% 0 0);
+            --light-accent: oklch(45% 0.24 270);
+            --light-code: oklch(45% 0.15 140);
+            --light-shadow: oklch(20% 0.02 270 / 10%);
+
+            /* Theme Primitives (Dark) */
+            --dark-paper: oklch(18% 0 0);
+            --dark-table: oklch(14% 0 0);
+            --dark-text: oklch(90% 0.01 270);
+            --dark-sub: oklch(60% 0.01 270);
+            --dark-accent: oklch(75% 0.14 270);
+            --dark-code: oklch(80% 0.15 140);
+            --dark-shadow: oklch(0% 0 0 / 50%);
+
+            /* Layout & Fonts */
+            --f-serif: 'Charter', 'Bitstream Charter', 'Sitka Text', Cambria, serif;
+            --f-sans: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            --f-mono: ui-monospace, 'Cascadia Code', 'Source Code Pro', monospace;
+
+            --w-content: 42rem;
+            --s-gutter: clamp(1.5rem, 5vw, 3rem);
+
+            /* Transitions */
+            --trans-theme: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+            --trans-layout: grid-template-rows 0.4s ease, opacity 0.4s ease, margin-bottom 0.4s ease, padding 0.4s ease;
+        }
+
+        /* Default (Light Mode) */
+        body {
+            --c-paper: var(--light-paper);
+            --c-table: var(--light-table);
+            --c-text: var(--light-text);
+            --c-sub: var(--light-sub);
+            --c-accent: var(--light-accent);
+            --c-code: var(--light-code);
+            --c-shadow: var(--light-shadow);
+        }
+
+        /* System Preference (Dark Mode) */
+        @media (prefers-color-scheme: dark) {
+            body {
+                --c-paper: var(--dark-paper);
+                --c-table: var(--dark-table);
+                --c-text: var(--dark-text);
+                --c-sub: var(--dark-sub);
+                --c-accent: var(--dark-accent);
+                --c-code: var(--dark-code);
+                --c-shadow: var(--dark-shadow);
+            }
+        }
+
+        /* User Override (Forces Light) */
+        body:has(#theme-light:checked) {
+            --c-paper: var(--light-paper);
+            --c-table: var(--light-table);
+            --c-text: var(--light-text);
+            --c-sub: var(--light-sub);
+            --c-accent: var(--light-accent);
+            --c-code: var(--light-code);
+            --c-shadow: var(--light-shadow);
+        }
+
+        /* User Override (Forces Dark) */
+        body:has(#theme-dark:checked) {
+            --c-paper: var(--dark-paper);
+            --c-table: var(--dark-table);
+            --c-text: var(--dark-text);
+            --c-sub: var(--dark-sub);
+            --c-accent: var(--dark-accent);
+            --c-code: var(--dark-code);
+            --c-shadow: var(--dark-shadow);
+        }
+
+        /* UI Feedback: Highlight the active label */
+        body:has(#theme-system:checked) .theme-label[for="theme-system"],
+        body:has(#theme-light:checked) .theme-label[for="theme-light"],
+        body:has(#theme-dark:checked) .theme-label[for="theme-dark"] {
+            color: var(--c-accent);
+            font-weight: 700;
+            text-decoration: underline;
+            text-underline-offset: 3px;
+        }
+
+        /* BASE STYLES */
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            background-color: var(--c-table);
+            color: var(--c-text);
+            font-family: var(--f-serif);
+            line-height: 1.5;
+            min-height: 100dvh;
+            transition: var(--trans-theme);
+        }
+
+        /* Inputs Hidden */
+        input.logic-check { display: none; }
+        input.filter-check { display: none; }
+
+        a { text-decoration: none; color: inherit; transition: color 0.2s; cursor: pointer; }
+        a:hover { color: var(--c-accent); }
+
+        /* Transition Classes */
+        .the-paper, .the-table, .year-title, .dots, .entry-date, .entry-summary, .filter-tag, .note-text, .note-meta, .rel-header, .rel-msg, .meta-stat {
+            transition: var(--trans-theme);
+        }
+
+        /* LAYOUT */
+        .the-table { position: fixed; inset: 0; z-index: 0; display: flex; flex-direction: column; justify-content: flex-end; padding: var(--s-gutter); pointer-events: auto; }
+        .the-paper { position: relative; z-index: 1; background-color: var(--c-paper); min-height: 100dvh; margin-bottom: 100dvh; padding: var(--s-gutter); box-shadow: 0 50px 100px -20px var(--c-shadow); display: flex; flex-direction: column; align-items: center; }
+        .paper-content { width: 100%; max-width: var(--w-content); margin-top: 4rem; margin-bottom: 6rem; }
+
+        /* HEADER */
+        header { text-align: center; margin-bottom: 2rem; }
+        h1 { font-size: 3rem; font-weight: 700; letter-spacing: -0.03em; margin-bottom: 0.5rem; }
+        .bio { font-family: var(--f-sans); font-size: 1rem; color: var(--c-sub); margin-bottom: 1.5rem; }
+
+        .gh-status { display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.25rem 0.75rem; border: 1px solid color-mix(in oklch, var(--c-text), transparent 85%); border-radius: 2rem; font-family: var(--f-sans); font-size: 0.8rem; color: var(--c-sub); margin-bottom: 2rem; }
+        .gh-status.status-busy { border-color: var(--c-accent); color: var(--c-accent); }
+
+        .now-section { border: 1px solid color-mix(in oklch, var(--c-text), transparent 90%); background: color-mix(in oklch, var(--c-paper), var(--c-table) 30%); padding: 1.5rem; border-radius: 4px; margin-bottom: 4rem; position: relative; }
+        .now-label { position: absolute; top: -0.6rem; left: 1rem; background: var(--c-paper); padding: 0 0.5rem; font-family: var(--f-mono); font-size: 0.7rem; color: var(--c-accent); letter-spacing: 0.1em; font-weight: 700; }
+        .now-content { font-size: 1rem; color: var(--c-text); }
+        .now-content p { margin-bottom: 0.5rem; }
+        .now-meta { font-family: var(--f-sans); font-size: 0.7rem; color: var(--c-sub); margin-top: 1rem; text-align: right; }
+
+        /* FILTER UI */
+        .filter-interface { display: flex; flex-direction: column; align-items: center; gap: 1rem; }
+        .filter-list { display: flex; justify-content: center; flex-wrap: wrap; gap: 0.5rem 0.85rem; max-width: 55ch; font-family: var(--f-sans); font-weight: 500; font-size: 0.85rem; color: var(--c-sub); }
+        .filter-separator { color: color-mix(in oklch, var(--c-sub), transparent 80%); }
+
+        /* Tag Styles */
+        .filter-tag { cursor: pointer; user-select: none; transition: color 0.2s; position: relative; }
+        .filter-tag:hover { color: var(--c-text); }
+
+        /* The 'x' placeholder (Always reserve space) */
+        .filter-tag::after {
+            content: "\00d7"; /* Multiplication Sign */
+            display: inline-block;
+            color: transparent; /* Hidden by default but takes space */
+            font-weight: 400;
+            margin-left: 3px;
+            transition: color 0.2s;
+        }
+
+        /* Controls Container (Clear / Collapse) */
+        .clear-container {
+            height: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            opacity: 0;
+            pointer-events: none;
+            transform: translateY(5px);
+            transition: all 0.4s ease;
+        }
+
+        /* Show controls if any filter is checked OR if collapse is toggled */
+        body:has(.filter-check:checked) .clear-container,
+        body:has(#toggle-collapse:checked) .clear-container {
+            opacity: 1; pointer-events: auto; transform: translateY(0);
+        }
+
+        /* Shared Link Style for Controls */
+        .ui-link {
+            background: none; border: none; padding: 0; margin: 0;
+            font-family: var(--f-sans); font-size: 0.75rem; color: var(--c-sub);
+            cursor: pointer; text-decoration: none; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600;
+        }
+        .ui-link:hover { color: var(--c-accent); }
+
+        /* Collapse Toggle (Hide Filtered) */
+        .collapse-label { position: relative; }
+        .collapse-label::after {
+            content: "\00d7";
+            display: inline-block;
+            color: transparent;
+            font-weight: 400;
+            margin-left: 3px;
+            transition: color 0.2s;
+        }
+
+        body:has(#toggle-collapse:checked) .collapse-label {
+            color: var(--c-text);
+            text-decoration: underline;
+            text-decoration-color: var(--c-accent);
+            text-decoration-thickness: 2px;
+            text-underline-offset: 4px;
+        }
+        body:has(#toggle-collapse:checked) .collapse-label::after { color: var(--c-sub); }
+        body:has(#toggle-collapse:checked) .collapse-label:hover::after { color: var(--c-accent); }
+
+        /* FILTERING LOGIC */
+        /* 1. Dim non-matches */
+        body:has(.filter-check:checked) .entry { opacity: 0.1; filter: grayscale(100%) blur(1px); }
+
+        /* 2. Hide non-matches (when collapsed) */
+        body:has(#toggle-collapse:checked):has(.filter-check:checked) .year-block { grid-template-rows: 0fr; opacity: 0; margin-bottom: 0; pointer-events: none; }
+        body:has(#toggle-collapse:checked):has(.filter-check:checked) .entry { grid-template-rows: 0fr; opacity: 0; margin-bottom: 0; pointer-events: none; }
+
+        /* 3. Restore matches (Injected Loop) */
+        {% for filter in filters %}
+        body:has(#f-{{ filter.id }}:checked) label[for="f-{{ filter.id }}"] {
+            color: var(--c-text);
+            text-decoration: underline;
+            text-decoration-color: var(--c-accent);
+            text-decoration-thickness: 2px;
+            text-underline-offset: 4px;
+        }
+
+        /* Make the 'x' visible */
+        body:has(#f-{{ filter.id }}:checked) label[for="f-{{ filter.id }}"]::after { color: var(--c-sub); }
+        body:has(#f-{{ filter.id }}:checked) label[for="f-{{ filter.id }}"]:hover::after { color: var(--c-accent); }
+
+        /* Visiblity Restoration */
+        body:has(#f-{{ filter.id }}:checked) .entry.tag-{{ filter.id }} { opacity: 1; filter: none; }
+        body:has(#toggle-collapse:checked):has(#f-{{ filter.id }}:checked) .entry.tag-{{ filter.id }} { grid-template-rows: 1fr; opacity: 1; margin-bottom: 2.5rem; pointer-events: auto; filter: none; display: grid; }
+        body:has(#toggle-collapse:checked):has(#f-{{ filter.id }}:checked) .year-block:has(.tag-{{ filter.id }}) { grid-template-rows: 1fr; opacity: 1; margin-bottom: 4rem; pointer-events: auto; display: grid; }
+        {% endfor %}
+
+        /* ENTRY STYLES */
+        /* Grid required for collapse animation */
+        .year-block, .entry { display: grid; grid-template-rows: 1fr; opacity: 1; transition: var(--trans-layout); }
+        .year-inner, .entry-inner { min-height: 0; overflow: hidden; }
+
+        .year-block { margin-bottom: 4rem; }
+        .year-title { font-family: var(--f-sans); font-size: 1.5rem; font-weight: 800; letter-spacing: -0.02em; color: var(--c-text); margin-bottom: 2rem; padding-bottom: 0.25rem; display: block; width: fit-content; margin-left: auto; }
+        .entry { margin-bottom: 2.5rem; }
+
+        .entry-row { display: flex; align-items: baseline; width: 100%; gap: 0.5rem; max-width: 100%; }
+        .entry-title { font-size: 1.35rem; font-weight: 400; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex-shrink: 1; min-width: 0; }
+        .entry-title:hover { text-decoration: underline; text-underline-offset: 4px; color: var(--c-accent); }
+        .dots { flex-grow: 1; border-bottom: 2px dotted var(--c-sub); opacity: 0.4; position: relative; flex-shrink: 0; min-width: 1rem; }
+        .meta-group { display: flex; align-items: center; gap: 1rem; flex-shrink: 0; }
+        .meta-stat { display: flex; align-items: center; gap: 0.3em; font-family: var(--f-sans); font-size: 0.75rem; color: var(--c-sub); font-weight: 500; text-decoration: none; }
+        .meta-stat svg { width: 1em; height: 1em; stroke: currentColor; stroke-width: 2; fill: none; }
+        .entry:hover .meta-stat { color: var(--c-text); }
+        a.meta-stat:hover { color: var(--c-accent); text-decoration: underline; }
+        .entry-date { font-family: var(--f-sans); font-weight: 500; font-size: 0.85rem; color: var(--c-text); font-variant-numeric: tabular-nums; white-space: nowrap; }
+        .entry-summary { display: block; margin-top: 0.25rem; font-size: 0.95rem; color: var(--c-sub); max-width: 90%; line-height: 1.4; text-wrap: pretty; }
+
+        /* Markdown P tag reset in summaries */
+        .entry-summary p { margin: 0; display: inline; }
+
+        .entry.tag-not { padding-left: 1.5rem; border-left: 3px solid color-mix(in oklch, var(--c-sub), transparent 70%); margin-bottom: 3rem; }
+        .note-text { font-size: 1.1rem; line-height: 1.5; color: var(--c-text); margin-bottom: 0.5rem; font-style: italic; }
+        .note-meta { font-family: var(--f-sans); font-size: 0.75rem; color: var(--c-sub); display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;}
+        .note-link { font-weight: 600; }
+        .note-link:hover { text-decoration: underline; color: var(--c-accent); }
+        .note-media { margin-bottom: 0.75rem; border-radius: 4px; overflow: hidden; border: 1px solid color-mix(in oklch, var(--c-text), transparent 90%); }
+        .note-media img { display: block; width: 100%; height: auto; }
+
+        .entry.tag-rel { margin-bottom: 2rem; }
+        .rel-repo { font-family: var(--f-mono); font-weight: 700; font-size: 0.95rem; color: var(--c-text); }
+        .rel-version { font-family: var(--f-mono); font-size: 0.75rem; color: var(--c-accent); background: color-mix(in oklch, var(--c-accent), transparent 90%); padding: 1px 4px; border-radius: 3px; margin-left: 0.5ch; }
+        .rel-msg { font-family: var(--f-mono); font-size: 0.8rem; color: var(--c-sub); margin-top: 0.25rem; display: block; white-space: pre-wrap; }
+        .rel-repo:hover { text-decoration: underline; text-decoration-color: var(--c-accent); text-underline-offset: 3px; }
+
+        /* Mobile */
+        @media (max-width: 650px) {
+            .entry-row { flex-direction: column; gap: 0; }
+            .entry-title { white-space: normal; font-weight: 600; margin-bottom: 0.25rem; }
+            .dots { display: none; }
+            .meta-group { width: 100%; margin-bottom: 0.5rem; color: var(--c-sub); font-size: 0.75rem; justify-content: flex-start; }
+            .entry-date { order: 1; margin-right: auto; color: var(--c-sub); font-size: 0.75rem; }
+            .meta-stat { order: 2; font-size: 0.75rem; }
+            .entry-summary { margin-top: 0; font-size: 0.9rem; }
+            .entry.tag-not { padding-left: 1rem; border-left-width: 2px; }
+            .note-meta { gap: 0.5rem 1rem; justify-content: flex-start; }
+            .note-meta > span:not(.meta-stat) { display: none; }
+            h1 { font-size: 2.25rem; }
+            .year-title { margin-left: 0; width: auto; }
+            .the-table { padding-bottom: 6rem; }
+        }
+
+        /* FOOTER */
+        .watermark { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-family: var(--f-sans); font-weight: 900; font-size: clamp(2rem, 5vw, 4rem); color: var(--c-text); opacity: 0.03; text-align: center; width: 100%; pointer-events: none; user-select: none; text-transform: uppercase; letter-spacing: -0.02em; }
+        .footer-content { position: relative; z-index: 2; width: 100%; max-width: var(--w-content); margin-inline: auto; font-family: var(--f-sans); font-size: 0.8rem; letter-spacing: 0.02em; }
+        .copyright { font-weight: 700; color: var(--c-text); margin-bottom: 0.5rem; }
+        .controls-row { display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: 1rem; color: var(--c-sub); }
+        .social-links { display: flex; gap: 1.5rem; }
+        .social-links a { text-decoration: none; }
+        .social-links a:hover { text-decoration: underline; text-underline-offset: 3px; color: var(--c-accent); }
+        .theme-switcher { display: flex; gap: 1rem; }
+        .theme-label { cursor: pointer; transition: color 0.2s; }
+        .theme-label:hover { color: var(--c-text); text-decoration: underline; text-underline-offset: 3px; }
+    </style>
+</head>
+<body>
+    <!-- State Inputs -->
+    <input type="radio" name="theme" id="theme-system" class="logic-check" checked>
+    <input type="radio" name="theme" id="theme-light" class="logic-check">
+    <input type="radio" name="theme" id="theme-dark" class="logic-check">
+    <input type="checkbox" id="toggle-collapse" class="logic-check">
+
+    {% for tag in filters %}
+    <input type="checkbox" class="filter-check logic-check" id="f-{{ tag.id }}">
+    {% endfor %}
+
+    <footer class="the-table">
+        <div class="watermark">This space intentionally<br>left blank</div>
+        <div class="footer-content">
+            <div class="copyright">{{ profile.name }} &copy; {{ year_range }}</div>
+            <div class="controls-row">
+                <nav class="social-links">
+                    {% for link in profile.socials %}
+                    <a href="{{ link.url }}">{{ link.name }}</a>
+                    {% endfor %}
+                </nav>
+                <div class="theme-switcher">
+                    <label for="theme-light" class="theme-label">light</label>
+                    <label for="theme-dark" class="theme-label">dark</label>
+                    <label for="theme-system" class="theme-label">system</label>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <main class="the-paper">
+        <div class="paper-content">
+            <header>
+                <h1>{{ profile.name }}</h1>
+                <p class="bio">{{ profile.tagline }}</p>
+
+                {% if status %}
+                <div class="gh-status {{ status.busyClass }}">
+                    <span class="status-emoji">{{ status.emoji }}</span>
+                    <span class="status-text">{{ status.message }}</span>
+                </div>
+                {% endif %}
+
+                <div class="filter-interface">
+                    <div class="filter-list">
+                        {% for section in filter_sections %}
+                            {% for tag in section %}
+                                <label for="f-{{ tag.id }}" class="filter-tag" {% if tag.color %}style="color: var({{ tag.color }})"{% endif %}>{{ tag.name }}</label>
+                            {% endfor %}
+                            {% unless forloop.last %}<span class="filter-separator">/</span>{% endunless %}
+                        {% endfor %}
+                    </div>
+
+                    <div class="clear-container">
+                        <button id="clear-filters" class="ui-link">Clear Selection</button>
+                        <span class="filter-separator">&middot;</span>
+                        <label for="toggle-collapse" class="ui-link collapse-label">Hide filtered</label>
+                    </div>
+                </div>
+            </header>
+
+            {% if now %}
+            <section class="now-section">
+                <div class="now-label">NOW</div>
+                <div class="now-content">{{ now.content }}</div>
+                <div class="now-meta">Updated {{ now.date | date: "%b %d" }}</div>
+            </section>
+            {% endif %}
+
+            {% for year_group in timeline %}
+            <section class="year-block">
+                <div class="year-inner">
+                    <h2 class="year-title">{{ year_group.year }}</h2>
+
+                    {% for item in year_group.items %}
+                        <article class="entry {{ item.tag_classes }}">
+                            <div class="entry-inner">
+                            {% if item.type == 'note' %}
+                                 <div class="note-text">{{ item.body | markdown }}</div>
+                                 {% if item.image %}<div class="note-media"><img src="{{ item.image }}" loading="lazy"></div>{% endif %}
+                                 <div class="note-meta">
+                                    <time>{{ item.date | date: "%b %d" }}</time>
+                                    <span>&middot;</span>
+                                    {% if item.metrics.replies > 0 or item.metrics.reposts > 0 or item.metrics.likes > 0 %}
+                                        {% if item.metrics.replies > 0 %}<a href="{{ item.url }}" class="meta-stat" title="{{ item.metrics.replies }} Replies"><svg viewBox="0 0 24 24"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" stroke-linecap="round" stroke-linejoin="round"></path></svg> {{ item.metrics.replies }}</a>{% endif %}
+                                        {% if item.metrics.reposts > 0 %}<a href="{{ item.url }}" class="meta-stat" title="{{ item.metrics.reposts }} Reposts"><svg viewBox="0 0 24 24"><path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2" stroke-linecap="round" stroke-linejoin="round"></path></svg> {{ item.metrics.reposts }}</a>{% endif %}
+                                        {% if item.metrics.likes > 0 %}<a href="{{ item.url }}" class="meta-stat" title="{{ item.metrics.likes }} Likes"><svg viewBox="0 0 24 24"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" stroke-linecap="round" stroke-linejoin="round"></path></svg> {{ item.metrics.likes }}</a>{% endif %}
+                                        <span>&middot;</span>
+                                    {% endif %}
+                                    <a href="{{ item.url }}" class="note-link">{{ item.sourceLabel }} ↗</a>
+                                </div>
+
+                            {% elsif item.type == 'article' or item.type == 'bookmark' %}
+                                <div class="entry-row">
+                                    <a href="{{ item.url }}" class="entry-title">{% if item.type == 'bookmark' %}🔖 {% endif %}{{ item.title }}</a>
+                                    <span class="dots"></span>
+                                    <div class="meta-group">
+                                        {% if item.metrics.comments > 0 %}<a href="{{ item.url }}#comments" class="meta-stat" title="{{ item.metrics.comments }} Comments"><svg viewBox="0 0 24 24"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" stroke-linecap="round" stroke-linejoin="round"></path></svg> {{ item.metrics.comments }}</a>{% endif %}
+                                        {% if item.metrics.reactions > 0 %}<a href="{{ item.url }}" class="meta-stat" title="{{ item.metrics.reactions }} Reactions"><svg viewBox="0 0 24 24"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" stroke-linecap="round" stroke-linejoin="round"></path></svg> {{ item.metrics.reactions }}</a>{% endif %}
+                                        <time class="entry-date">{{ item.date | date: "%b %d" }}</time>
+                                    </div>
+                                </div>
+                                {% if item.summary %}
+                                <div class="entry-summary">{{ item.summary | markdown }}</div>
+                                {% endif %}
+
+                            {% elsif item.type == 'video' %}
+                                <div class="note-media"><a href="{{ item.url }}"><img src="{{ item.image }}" alt="{{ item.title }}"></a></div>
+                                <div class="note-meta"><time>{{ item.date | date: "%b %d" }}</time><span>&middot;</span><a href="{{ item.url }}" class="note-link">YouTube ↗</a></div>
+
+                            {% elsif item.type == 'release' %}
+                                <div class="entry-row">
+                                    <span><a href="{{ item.url }}" class="rel-repo">{{ item.owner }}/{{ item.repo }}</a><span class="rel-version">{{ item.title }}</span></span>
+                                    <span class="dots"></span>
+                                    <time class="entry-date">{{ item.date | date: "%b %d" }}</time>
+                                </div>
+                                <code class="rel-msg">{{ item.body | split: "\n" | first | truncate: 100 }}</code>
+                            {% endif %}
+                            </div>
+                        </article>
+                    {% endfor %}
+                </div>
+            </section>
+            {% endfor %}
+        </div>
+    </main>
+
+    <script>
+        // Restore Checkbox States and Theme on Load
+        const init = () => {
+            const savedTheme = localStorage.getItem('theme') || 'theme-system';
+            const el = document.getElementById(savedTheme);
+            if(el) el.checked = true;
+
+            const params = new URLSearchParams(window.location.search);
+            const tags = params.get('tags');
+            if (tags) {
+                tags.split(',').forEach(t => {
+                    const cb = document.getElementById('f-' + t);
+                    if(cb) cb.checked = true;
+                });
+            }
+            if(params.get('collapse')) document.getElementById('toggle-collapse').checked = true;
+        };
+
+        // Sync State
+        const updateState = () => {
+            const params = new URLSearchParams();
+            const activeTags = [];
+            document.querySelectorAll('.filter-check:checked').forEach(cb => activeTags.push(cb.id.replace('f-', '')));
+
+            if (activeTags.length > 0) params.set('tags', activeTags.join(','));
+            if (document.getElementById('toggle-collapse').checked) params.set('collapse', '1');
+
+            let currentTheme = 'theme-system';
+            const radios = document.getElementsByName('theme');
+            for(const r of radios) if(r.checked) currentTheme = r.id;
+            localStorage.setItem('theme', currentTheme);
+
+            const newUrl = window.location.pathname + (params.toString() ? '?' + params.toString() : '');
+            window.history.replaceState({}, '', newUrl);
+        };
+
+        document.getElementById('clear-filters').addEventListener('click', () => {
+            document.querySelectorAll('.filter-check').forEach(cb => cb.checked = false);
+            document.getElementById('toggle-collapse').checked = false;
+            updateState();
+        });
+
+        document.querySelectorAll('input.logic-check').forEach(el => el.addEventListener('change', updateState));
+
+        init();
+    </script>
+</body>
+</html>

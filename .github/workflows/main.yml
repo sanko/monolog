@@ -1,0 +1,56 @@
+name: Build and Deploy
+
+on:
+  # Run daily to fetch new Bluesky/GitHub interactions
+  schedule:
+    - cron: '0 0/2 * * *' # Every 2 hours
+  # Run when you push changes to config or template
+  push:
+    branches: [ main ]
+  # Allow manual run button in GitHub UI
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Dependencies
+        run: npm install node-fetch@2 markdown-it rss dotenv rss rss-parser node-emoji@1
+
+      - name: Run Build Script
+        env:
+          # GITHUB_TOKEN is automatically provided by Actions
+          # We use it to fetch your discussions/releases
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node build.js
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: '.'
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
